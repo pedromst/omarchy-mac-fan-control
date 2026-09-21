@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+PATH=/usr/bin:/usr/sbin
+export PATH
+
 state_dir=/var/lib/omarchy-mac-fan-control
 backup="$state_dir/mbpfan.conf.original"
 config=/etc/mbpfan.conf
@@ -24,8 +27,16 @@ set_all_fans_max() {
     stem=${max_file%_max}
     fan=$(<"$max_file")
     [[ "$fan" =~ ^[0-9]+$ && "$fan" -ge 1000 ]] || die "invalid maximum fan speed"
-    printf '1\n' >"${stem}_manual"
-    printf '%s\n' "$fan" >"${stem}_output"
+    # Set the target before taking manual control. If either write fails,
+    # release this fan back to firmware control before exiting.
+    printf '%s\n' "$fan" >"${stem}_output" || {
+      printf '0\n' >"${stem}_manual" 2>/dev/null || true
+      die "could not set maximum speed"
+    }
+    printf '1\n' >"${stem}_manual" || {
+      printf '0\n' >"${stem}_manual" 2>/dev/null || true
+      die "could not enable manual fan control"
+    }
   done
 }
 
@@ -37,41 +48,62 @@ validate_curve() {
   (( $1 < $2 && $2 < $3 )) || die "temperatures must satisfy LOW < HIGH < MAX"
 }
 
-install -d -m 0755 "$state_dir"
-if [[ -f "$config" && ! -f "$backup" ]]; then
-  install -m 0644 "$config" "$backup"
-fi
+install -d -m 0700 "$state_dir"
+[[ -f "$backup" ]] || die "original mbpfan configuration backup is missing; reinstall the plugin"
+
+start_mbpfan() {
+  systemctl disable --now omarchy-mac-fan-max.service 2>/dev/null || true
+  systemctl enable mbpfan.service || return 1
+  systemctl restart mbpfan.service || return 1
+}
+
+recover_automatic_control() {
+  install -m 0644 "$backup" "$config" 2>/dev/null || true
+  if systemctl enable mbpfan.service >/dev/null 2>&1 && systemctl restart mbpfan.service; then
+    printf 'auto\n' >/run/omarchy-mac-fan-control.mode
+    return 0
+  fi
+  systemctl start omarchy-mac-fan-max.service 2>/dev/null || true
+  return 1
+}
 
 case "${1:-}" in
   auto)
-    systemctl stop omarchy-mac-fan-max.service 2>/dev/null || true
-    [[ -f "$backup" ]] && install -m 0644 "$backup" "$config"
+    install -m 0644 "$backup" "$config"
+    start_mbpfan || {
+      recover_automatic_control || true
+      die "could not start mbpfan automatic control"
+    }
     printf 'auto\n' >/run/omarchy-mac-fan-control.mode
-    systemctl enable --now mbpfan.service
-    systemctl restart mbpfan.service
     ;;
   cool)
     validate_curve "${2:-}" "${3:-}" "${4:-}"
-    systemctl stop omarchy-mac-fan-max.service 2>/dev/null || true
-    [[ -f "$backup" ]] || die "original mbpfan configuration backup is missing"
+    config_tmp=$(mktemp /etc/mbpfan.conf.XXXXXX)
+    trap 'rm -f "$config_tmp"' EXIT
     awk -v low="$2" -v high="$3" -v max="$4" '
       /^[[:space:]]*low_temp[[:space:]]*=/  { print "low_temp = " low; next }
       /^[[:space:]]*high_temp[[:space:]]*=/ { print "high_temp = " high; next }
       /^[[:space:]]*max_temp[[:space:]]*=/  { print "max_temp = " max; next }
       { print }
-    ' "$backup" >"$config.tmp"
-    install -m 0644 "$config.tmp" "$config"
-    rm -f "$config.tmp"
+    ' "$backup" >"$config_tmp"
+    grep -Eq "^[[:space:]]*low_temp[[:space:]]*=[[:space:]]*$2([[:space:]]|$)" "$config_tmp" && grep -Eq "^[[:space:]]*high_temp[[:space:]]*=[[:space:]]*$3([[:space:]]|$)" "$config_tmp" && grep -Eq "^[[:space:]]*max_temp[[:space:]]*=[[:space:]]*$4([[:space:]]|$)" "$config_tmp" || die "the saved mbpfan configuration is missing a temperature setting"
+    install -m 0644 "$config_tmp" "$config"
+    if ! start_mbpfan; then
+      recover_automatic_control || true
+      die "could not start the cool curve; attempted to restore automatic control"
+    fi
     printf 'cool\n' >/run/omarchy-mac-fan-control.mode
-    systemctl enable --now mbpfan.service
-    systemctl restart mbpfan.service
     ;;
   max)
-    systemctl stop mbpfan.service
+    systemctl disable omarchy-mac-fan-max.service 2>/dev/null || true
+    if ! systemctl start omarchy-mac-fan-max.service; then
+      recover_automatic_control || true
+      die "could not start maximum mode; attempted to restore automatic control"
+    fi
     printf 'max\n' >/run/omarchy-mac-fan-control.mode
-    systemctl start omarchy-mac-fan-max.service
     ;;
   hold-max)
+    [[ -z ${PKEXEC_UID:-} ]] || die "hold-max is reserved for the system service"
     trap 'exit 0' TERM INT
     while true; do
       set_all_fans_max

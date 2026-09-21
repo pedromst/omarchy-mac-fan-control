@@ -1,22 +1,26 @@
 # Mac Fan Control for Omarchy
 
-A native Omarchy bar widget for Intel MacBooks using the Linux `applesmc`
-driver and `mbpfan`.
+A native Omarchy bar widget for supported Intel Macs using the Linux
+`applesmc` driver and `mbpfan`.
 
 It displays CPU temperature and fan RPM and offers three modes:
 
-- **Auto** restores the original `/etc/mbpfan.conf`.
+- **Auto** restores the `/etc/mbpfan.conf` saved when the system helper was
+  installed.
 - **Cool** applies an earlier, configurable fan curve (45/55/70°C by default).
 - **Maximum** holds every detected Apple SMC fan at its reported maximum RPM.
 
-Maximum mode is deliberately not enabled across reboot. The installed mbpfan
+Maximum mode is deliberately not enabled across reboot. The installed `mbpfan`
 service remains enabled and resumes automatic thermal control on the next boot.
 
 ## Requirements
 
 - Omarchy 4 or newer
-- An Intel Mac with the `applesmc` and `coretemp` kernel modules
+- An Intel Mac with working `applesmc` and `coretemp` kernel modules
 - `mbpfan`, `jq`, `systemd`, and `pkexec`
+
+This plugin does not support Apple Silicon or an Intel Mac on which the
+`applesmc` fan interface is unavailable.
 
 On Omarchy/Arch, install mbpfan first if needed:
 
@@ -32,10 +36,25 @@ cd ~/.config/omarchy/plugins/pedromst.mac-fan-control
 sudo ./install.sh
 ```
 
-The second command installs a small, root-owned helper, systemd unit, and a
-strict Polkit rule. The rule allows the active local user to run only this
-argument-validating helper without repeated password prompts; it does not grant
+The second command saves the current `mbpfan` configuration and installs a
+small root-owned helper, a systemd unit, and a narrow Polkit rule. The rule
+allows only the active local user who ran the installer to invoke that fixed,
+argument-validating helper without repeated password prompts. It does not grant
 passwordless access to other administrative commands.
+
+## Update
+
+Return to automatic control before updating, then refresh both the plugin code
+and its root-owned system helper:
+
+```bash
+~/.config/omarchy/plugins/pedromst.mac-fan-control/bin/mac-fan-control auto
+omarchy plugin update pedromst.mac-fan-control
+cd ~/.config/omarchy/plugins/pedromst.mac-fan-control
+sudo ./install.sh
+```
+
+The plugin settings and bar placement are preserved.
 
 ## Use
 
@@ -53,20 +72,26 @@ CLI and IPC are also available:
 omarchy-shell pedromst.mac-fan-control status
 ```
 
-## Safety
+## Safety and limitations
 
-The helper only accepts the documented modes and enforces conservative bounds
-for a custom curve (`LOW < HIGH < MAX`, with limits no warmer than mbpfan's
-stock 55/62/80°C curve). Passwordless Polkit access is granted only to the
-specific local account that runs the installer. The helper backs up the
-original mbpfan configuration before changing it. Uninstalling restores that
-backup and starts mbpfan again:
+The user-facing helper accepts only the documented modes and enforces a
+conservative ceiling for a custom curve: `LOW < HIGH < MAX`, with maximum
+accepted values of 55/62/80°C. Passwordless Polkit access is granted only to
+the specific local account that runs the installer. Mode transitions fall back
+to automatic `mbpfan` control if the requested controller cannot start.
+
+Earlier fan ramps can reduce CPU temperature, but they also increase noise and
+may increase fan wear. Maximum mode is intended for short, supervised use.
+
+Uninstalling restores the saved `mbpfan` configuration and verifies that
+automatic control starts before removing the privileged helper:
 
 ```bash
 sudo ./uninstall.sh
 omarchy plugin remove pedromst.mac-fan-control
 ```
 
-Fan control can reduce temperature, but it cannot repair display flex-cable,
+Fan control can reduce CPU temperature. It cannot guarantee lower temperatures
+for every component, prevent hardware failure, or repair display flex-cable,
 panel, GPU, or logic-board damage. Back up important data and have recurring
 display artifacts diagnosed.

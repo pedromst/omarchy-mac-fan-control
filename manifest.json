@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "pedromst.mac-fan-control",
   "name": "Mac Fan Control",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "Pedro Teixeira",
   "license": "MIT",
   "description": "Apple SMC temperature and fan control for supported Intel Macs, backed by mbpfan.",
@@ -19,12 +19,14 @@
     "defaultSection": "right",
     "defaults": {
       "refreshIntervalSec": 3,
+      "showTemperature": true,
       "coolLowTemp": 45,
       "coolHighTemp": 55,
       "coolMaxTemp": 70
     },
     "schema": [
       { "key": "refreshIntervalSec", "type": "integer", "label": "Refresh interval (seconds)", "min": 1, "max": 30, "step": 1, "defaultValue": 3 },
+      { "key": "showTemperature", "type": "boolean", "label": "Show temperature in the bar", "description": "Display the live CPU package temperature beside the fan icon.", "defaultValue": true },
       { "key": "coolLowTemp", "type": "integer", "label": "Cool curve: low temperature (°C)", "min": 35, "max": 55, "step": 1, "defaultValue": 45 },
       { "key": "coolHighTemp", "type": "integer", "label": "Cool curve: ramp temperature (°C)", "min": 45, "max": 62, "step": 1, "defaultValue": 55 },
       { "key": "coolMaxTemp", "type": "integer", "label": "Cool curve: maximum temperature (°C)", "min": 60, "max": 80, "step": 1, "defaultValue": 70 }

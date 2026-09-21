@@ -10,6 +10,10 @@ It displays CPU temperature and fan RPM and offers three modes:
 - **Cool** applies an earlier, configurable fan curve (45/55/70°C by default).
 - **Maximum** holds every detected Apple SMC fan at its reported maximum RPM.
 
+The bar can optionally show the live CPU package temperature beside the fan
+icon, like the battery percentage indicator. This is enabled by default and can
+be changed in the plugin settings.
+
 Maximum mode is deliberately not enabled across reboot. The installed `mbpfan`
 service remains enabled and resumes automatic thermal control on the next boot.
 
@@ -55,6 +59,11 @@ sudo ./install.sh
 ```
 
 The plugin settings and bar placement are preserved.
+
+`omarchy plugin update` updates the user-owned plugin files only. When a release
+changes the root-owned helper or systemd unit, rerun `sudo ./install.sh` as shown
+above; Omarchy deliberately does not execute privileged plugin code during a
+Git update.
 
 ## Use
 

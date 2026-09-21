@@ -17,6 +17,7 @@ Panel {
   property string actionMessage: ""
   property bool actionFailed: false
   readonly property int refreshSeconds: Math.max(1, Number(setting("refreshIntervalSec", 3)))
+  readonly property bool showTemperature: setting("showTemperature", true) === true
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
@@ -24,6 +25,7 @@ Panel {
   readonly property bool available: fanStatus.available === true
   readonly property string mode: String(fanStatus.mode || "unknown")
   readonly property bool busy: actionProc.running
+  readonly property real openPanelIndicatorWidth: showTemperature && available && !button.vertical ? button.glyphPaintedWidth : 0
 
   function modeTitle() {
     if (mode === "max") return "Maximum"
@@ -118,8 +120,10 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󰈐"
-    slotSize: Style.bar.iconSlot
+    text: root.showTemperature && root.available && !vertical
+      ? "󰈐 " + Math.round(Number(root.fanStatus.temperature || 0)) + "°C"
+      : "󰈐"
+    slotSize: Style.bar.iconSlot * (root.showTemperature && root.available && !vertical ? 2 : 1)
     active: root.mode === "max" || root.mode === "cool"
     tooltipText: root.available
       ? root.modeTitle() + " · " + Math.round(root.fanStatus.rpm || 0) + " RPM · " + Number(root.fanStatus.temperature || 0).toFixed(0) + "°C"

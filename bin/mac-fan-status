@@ -1,0 +1,76 @@
+#!/bin/bash
+set -u
+
+json_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+smc_dir=""
+for candidate in /sys/devices/platform/applesmc.*; do
+  if [[ -d "$candidate" && -r "$candidate/fan1_input" ]]; then
+    smc_dir="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$smc_dir" ]]; then
+  printf '{"available":false,"error":"Apple SMC fan interface not found"}\n'
+  exit 0
+fi
+
+fan_count=0
+rpm_total=0
+rpm_max=0
+for input in "$smc_dir"/fan*_input; do
+  [[ -r "$input" ]] || continue
+  rpm=$(<"$input")
+  [[ "$rpm" =~ ^[0-9]+$ ]] || continue
+  ((fan_count += 1))
+  ((rpm_total += rpm))
+  ((rpm > rpm_max)) && rpm_max=$rpm
+done
+
+rpm=0
+((fan_count > 0)) && rpm=$((rpm_total / fan_count))
+
+min_rpm=$(cat "$smc_dir/fan1_min" 2>/dev/null || printf '0')
+max_rpm=$(cat "$smc_dir/fan1_max" 2>/dev/null || printf '0')
+manual=$(cat "$smc_dir/fan1_manual" 2>/dev/null || printf '0')
+
+temp_milli=""
+for zone in /sys/class/hwmon/hwmon*; do
+  [[ -r "$zone/name" ]] || continue
+  [[ "$(<"$zone/name")" == "coretemp" ]] || continue
+  for label in "$zone"/temp*_label; do
+    [[ -r "$label" ]] || continue
+    if [[ "$(<"$label")" == "Package id 0" ]]; then
+      input="${label%_label}_input"
+      [[ -r "$input" ]] && temp_milli=$(<"$input")
+      break 2
+    fi
+  done
+done
+
+if [[ ! "$temp_milli" =~ ^-?[0-9]+$ ]]; then
+  temp_milli=0
+  for input in "$smc_dir"/temp*_input; do
+    [[ -r "$input" ]] || continue
+    value=$(<"$input")
+    [[ "$value" =~ ^[0-9]+$ ]] || continue
+    ((value > temp_milli && value < 120000)) && temp_milli=$value
+  done
+fi
+
+mode="unknown"
+if systemctl is-active --quiet omarchy-mac-fan-max.service 2>/dev/null; then
+  mode="max"
+elif systemctl is-active --quiet mbpfan.service 2>/dev/null; then
+  if [[ -r /run/omarchy-mac-fan-control.mode ]]; then
+    mode=$(</run/omarchy-mac-fan-control.mode)
+  else
+    mode="auto"
+  fi
+fi
+
+printf '{"available":true,"mode":%s,"rpm":%d,"maxRpm":%d,"minRpm":%d,"fanCount":%d,"temperature":%.1f,"manual":%d}\n' \
+  "$(json_string "$mode")" "$rpm" "$max_rpm" "$min_rpm" "$fan_count" "$(awk -v t="$temp_milli" 'BEGIN { printf "%.1f", t / 1000 }')" "$manual"

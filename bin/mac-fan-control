@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+helper=/usr/local/libexec/omarchy-mac-fan-control-helper
+
+case "${1:-}" in
+  status)
+    exec "$(dirname "$0")/mac-fan-status"
+    ;;
+  auto|max)
+    [[ -x "$helper" ]] || { echo "System helper is not installed. Run: sudo ./install.sh" >&2; exit 3; }
+    exec pkexec "$helper" "$1"
+    ;;
+  cool)
+    [[ -x "$helper" ]] || { echo "System helper is not installed. Run: sudo ./install.sh" >&2; exit 3; }
+    exec pkexec "$helper" cool "${2:-45}" "${3:-55}" "${4:-70}"
+    ;;
+  *)
+    echo "Usage: $0 {status|auto|max|cool [LOW HIGH MAX]}" >&2
+    exit 2
+    ;;
+esac

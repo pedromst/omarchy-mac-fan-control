@@ -1,0 +1,84 @@
+#!/bin/bash
+set -euo pipefail
+
+state_dir=/var/lib/omarchy-mac-fan-control
+backup="$state_dir/mbpfan.conf.original"
+config=/etc/mbpfan.conf
+
+die() { echo "mac-fan-control: $*" >&2; exit 1; }
+[[ $(id -u) -eq 0 ]] || die "this helper must run as root"
+
+smc_directory() {
+  local candidate
+  for candidate in /sys/devices/platform/applesmc.*; do
+    [[ -d "$candidate" && -e "$candidate/fan1_manual" ]] && { printf '%s\n' "$candidate"; return; }
+  done
+  return 1
+}
+
+set_all_fans_max() {
+  local smc fan max_file stem
+  smc=$(smc_directory) || die "Apple SMC fan interface not found"
+  for max_file in "$smc"/fan*_max; do
+    [[ -r "$max_file" ]] || continue
+    stem=${max_file%_max}
+    fan=$(<"$max_file")
+    [[ "$fan" =~ ^[0-9]+$ && "$fan" -ge 1000 ]] || die "invalid maximum fan speed"
+    printf '1\n' >"${stem}_manual"
+    printf '%s\n' "$fan" >"${stem}_output"
+  done
+}
+
+validate_curve() {
+  [[ ${1:-} =~ ^[0-9]+$ && ${2:-} =~ ^[0-9]+$ && ${3:-} =~ ^[0-9]+$ ]] || die "temperatures must be integers"
+  (( $1 >= 35 && $1 <= 65 )) || die "low temperature must be 35–65°C"
+  (( $2 >= 45 && $2 <= 75 )) || die "high temperature must be 45–75°C"
+  (( $3 >= 60 && $3 <= 90 )) || die "maximum temperature must be 60–90°C"
+  (( $1 < $2 && $2 < $3 )) || die "temperatures must satisfy LOW < HIGH < MAX"
+}
+
+install -d -m 0755 "$state_dir"
+if [[ -f "$config" && ! -f "$backup" ]]; then
+  install -m 0644 "$config" "$backup"
+fi
+
+case "${1:-}" in
+  auto)
+    systemctl stop omarchy-mac-fan-max.service 2>/dev/null || true
+    [[ -f "$backup" ]] && install -m 0644 "$backup" "$config"
+    printf 'auto\n' >/run/omarchy-mac-fan-control.mode
+    systemctl enable --now mbpfan.service
+    systemctl restart mbpfan.service
+    ;;
+  cool)
+    validate_curve "${2:-}" "${3:-}" "${4:-}"
+    systemctl stop omarchy-mac-fan-max.service 2>/dev/null || true
+    [[ -f "$backup" ]] || die "original mbpfan configuration backup is missing"
+    awk -v low="$2" -v high="$3" -v max="$4" '
+      /^[[:space:]]*low_temp[[:space:]]*=/  { print "low_temp = " low; next }
+      /^[[:space:]]*high_temp[[:space:]]*=/ { print "high_temp = " high; next }
+      /^[[:space:]]*max_temp[[:space:]]*=/  { print "max_temp = " max; next }
+      { print }
+    ' "$backup" >"$config.tmp"
+    install -m 0644 "$config.tmp" "$config"
+    rm -f "$config.tmp"
+    printf 'cool\n' >/run/omarchy-mac-fan-control.mode
+    systemctl enable --now mbpfan.service
+    systemctl restart mbpfan.service
+    ;;
+  max)
+    systemctl stop mbpfan.service
+    printf 'max\n' >/run/omarchy-mac-fan-control.mode
+    systemctl start omarchy-mac-fan-max.service
+    ;;
+  hold-max)
+    trap 'exit 0' TERM INT
+    while true; do
+      set_all_fans_max
+      sleep 2 & wait $!
+    done
+    ;;
+  *)
+    die "usage: $0 {auto|max|cool LOW HIGH MAX|hold-max}"
+    ;;
+esac

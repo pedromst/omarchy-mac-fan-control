@@ -1,0 +1,10 @@
+// Passwordless access is limited to this root-owned, argument-validating helper
+// and to a user at the active local seat. It does not authorize arbitrary pkexec.
+polkit.addRule(function(action, subject) {
+  if (action.id === "org.freedesktop.policykit.exec" &&
+      action.lookup("program") === "/usr/local/libexec/omarchy-mac-fan-control-helper" &&
+      action.lookup("user") === "root" &&
+      subject.local && subject.active) {
+    return polkit.Result.YES;
+  }
+});

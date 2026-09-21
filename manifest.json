@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "pedromst.mac-fan-control",
+  "name": "Mac Fan Control",
+  "version": "0.1.0",
+  "author": "Pedro Teixeira",
+  "license": "MIT",
+  "description": "Safe Apple SMC fan control for the Omarchy bar, backed by mbpfan.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Mac Fan Control",
+    "description": "Monitor temperature and fan speed; switch between automatic, cool and maximum modes.",
+    "category": "System",
+    "aliases": ["fan", "mbpfan", "macbook", "temperature"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 3,
+      "showRpm": false,
+      "coolLowTemp": 45,
+      "coolHighTemp": 55,
+      "coolMaxTemp": 70
+    },
+    "schema": [
+      { "key": "refreshIntervalSec", "type": "integer", "label": "Refresh interval (seconds)", "min": 1, "max": 30, "step": 1, "defaultValue": 3 },
+      { "key": "showRpm", "type": "boolean", "label": "Show RPM in the bar", "defaultValue": false },
+      { "key": "coolLowTemp", "type": "integer", "label": "Cool curve: low temperature (°C)", "min": 35, "max": 65, "step": 1, "defaultValue": 45 },
+      { "key": "coolHighTemp", "type": "integer", "label": "Cool curve: ramp temperature (°C)", "min": 45, "max": 75, "step": 1, "defaultValue": 55 },
+      { "key": "coolMaxTemp", "type": "integer", "label": "Cool curve: maximum temperature (°C)", "min": 60, "max": 90, "step": 1, "defaultValue": 70 }
+    ]
+  }
+}

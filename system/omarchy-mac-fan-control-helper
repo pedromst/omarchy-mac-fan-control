@@ -31,9 +31,9 @@ set_all_fans_max() {
 
 validate_curve() {
   [[ ${1:-} =~ ^[0-9]+$ && ${2:-} =~ ^[0-9]+$ && ${3:-} =~ ^[0-9]+$ ]] || die "temperatures must be integers"
-  (( $1 >= 35 && $1 <= 65 )) || die "low temperature must be 35–65°C"
-  (( $2 >= 45 && $2 <= 75 )) || die "high temperature must be 45–75°C"
-  (( $3 >= 60 && $3 <= 90 )) || die "maximum temperature must be 60–90°C"
+  (( $1 >= 35 && $1 <= 55 )) || die "low temperature must be 35–55°C"
+  (( $2 >= 45 && $2 <= 62 )) || die "high temperature must be 45–62°C"
+  (( $3 >= 60 && $3 <= 80 )) || die "maximum temperature must be 60–80°C"
   (( $1 < $2 && $2 < $3 )) || die "temperatures must satisfy LOW < HIGH < MAX"
 }
 

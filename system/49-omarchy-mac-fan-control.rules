@@ -1,9 +1,11 @@
-// Passwordless access is limited to this root-owned, argument-validating helper
-// and to a user at the active local seat. It does not authorize arbitrary pkexec.
+// The installer replaces __INSTALL_USER__ with the account that invoked it.
+// Access is limited to this root-owned, argument-validating helper and to that
+// user at the active local seat. It does not authorize arbitrary pkexec.
 polkit.addRule(function(action, subject) {
   if (action.id === "org.freedesktop.policykit.exec" &&
       action.lookup("program") === "/usr/local/libexec/omarchy-mac-fan-control-helper" &&
       action.lookup("user") === "root" &&
+      subject.user === "__INSTALL_USER__" &&
       subject.local && subject.active) {
     return polkit.Result.YES;
   }

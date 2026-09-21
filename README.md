@@ -56,7 +56,9 @@ omarchy-shell pedromst.mac-fan-control status
 ## Safety
 
 The helper only accepts the documented modes and enforces conservative bounds
-for a custom curve (`LOW < HIGH < MAX`, within 35–90°C). It backs up the
+for a custom curve (`LOW < HIGH < MAX`, with limits no warmer than mbpfan's
+stock 55/62/80°C curve). Passwordless Polkit access is granted only to the
+specific local account that runs the installer. The helper backs up the
 original mbpfan configuration before changing it. Uninstalling restores that
 backup and starts mbpfan again:
 

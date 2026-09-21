@@ -118,10 +118,8 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.setting("showRpm", false) && !vertical && root.available
-      ? "󰈐 " + Math.round(Number(root.fanStatus.rpm || 0) / 100) / 10 + "k"
-      : "󰈐"
-    slotSize: Style.bar.iconSlot * (root.setting("showRpm", false) && !vertical ? 2.15 : 1)
+    text: "󰈐"
+    slotSize: Style.bar.iconSlot
     active: root.mode === "max" || root.mode === "cool"
     tooltipText: root.available
       ? root.modeTitle() + " · " + Math.round(root.fanStatus.rpm || 0) + " RPM · " + Number(root.fanStatus.temperature || 0).toFixed(0) + "°C"

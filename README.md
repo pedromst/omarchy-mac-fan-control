@@ -42,8 +42,8 @@ passwordless access to other administrative commands.
 - Left click: open the control panel.
 - Right click: toggle between Auto and Maximum.
 - Middle click: refresh sensor readings.
-- Plugin settings: optionally show RPM in the bar, change the refresh rate,
-  and edit the Cool curve. The default bar appearance is icon-only.
+- Plugin settings: change the refresh rate and edit the Cool curve. The bar
+  always uses a clean, icon-only appearance; RPM remains visible in the panel.
 
 CLI and IPC are also available:
 

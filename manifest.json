@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "pedromst.mac-fan-control",
   "name": "Mac Fan Control",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Pedro Teixeira",
   "license": "MIT",
-  "description": "Safe Apple SMC fan control for the Omarchy bar, backed by mbpfan.",
+  "description": "Apple SMC temperature and fan control for supported Intel Macs, backed by mbpfan.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "Panel.qml"

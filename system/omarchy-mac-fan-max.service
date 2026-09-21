@@ -2,12 +2,12 @@
 Description=Hold Apple SMC fans at maximum speed
 After=systemd-modules-load.service
 Conflicts=mbpfan.service
+OnFailure=mbpfan.service
+StartLimitIntervalSec=10
+StartLimitBurst=3
 
 [Service]
 Type=simple
 ExecStart=/usr/local/libexec/omarchy-mac-fan-control-helper hold-max
-Restart=always
+Restart=on-failure
 RestartSec=1
-
-[Install]
-WantedBy=multi-user.target

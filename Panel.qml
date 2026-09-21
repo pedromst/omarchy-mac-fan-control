@@ -17,7 +17,8 @@ Panel {
   property string actionMessage: ""
   property bool actionFailed: false
   readonly property int refreshSeconds: Math.max(1, Number(setting("refreshIntervalSec", 3)))
-  readonly property bool showTemperature: setting("showTemperature", true) === true
+  readonly property bool showTemperature: setting("showTemperature", false) === true
+  readonly property string temperatureUnit: String(setting("temperatureUnit", "Celsius"))
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
@@ -32,6 +33,21 @@ Panel {
     if (mode === "cool") return "Cool curve"
     if (mode === "auto") return "Automatic"
     return "Unavailable"
+  }
+
+  function temperatureText() {
+    var celsius = Number(fanStatus.temperature || 0)
+    if (temperatureUnit === "Fahrenheit") return Math.round(celsius * 9 / 5 + 32) + "°F"
+    return Math.round(celsius) + "°C"
+  }
+
+  function persistSettings(values) {
+    var entry = { id: root.moduleName }
+    for (var existing in root.settings) if (existing !== "id") entry[existing] = root.settings[existing]
+    for (var key in values) entry[key] = values[key]
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
   }
 
   function refresh() {
@@ -121,12 +137,13 @@ Panel {
     anchors.fill: parent
     bar: root.bar
     text: root.showTemperature && root.available && !vertical
-      ? "󰈐 " + Math.round(Number(root.fanStatus.temperature || 0)) + "°C"
+      ? "󰈐 " + root.temperatureText()
       : "󰈐"
     slotSize: Style.bar.iconSlot * (root.showTemperature && root.available && !vertical ? 2 : 1)
-    active: root.mode === "max" || root.mode === "cool"
+    active: root.mode === "max"
+    activeColor: root.urgent
     tooltipText: root.available
-      ? root.modeTitle() + " · " + Math.round(root.fanStatus.rpm || 0) + " RPM · " + Number(root.fanStatus.temperature || 0).toFixed(0) + "°C"
+      ? root.modeTitle() + " · " + Math.round(root.fanStatus.rpm || 0) + " RPM · " + root.temperatureText()
       : "Apple SMC fan not detected"
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) root.applyMode(root.mode === "max" ? "auto" : "max")
@@ -160,7 +177,7 @@ Panel {
           width: parent.width
           title: "Mac Fan Control"
           meta: root.available ? root.modeTitle() : "Apple SMC unavailable"
-          detail: root.available ? Number(root.fanStatus.temperature || 0).toFixed(0) + "°C" : ""
+          detail: root.available ? root.temperatureText() : ""
           foreground: root.foreground
           fontFamily: root.fontFamily
           iconComponent: Component {
@@ -180,6 +197,45 @@ Panel {
           StatBox { label: "SPEED"; value: Math.round(root.fanStatus.rpm || 0) + " RPM" }
           StatBox { label: "LIMIT"; value: Math.round(root.fanStatus.maxRpm || 0) + " RPM" }
           StatBox { label: "FANS"; value: String(root.fanStatus.fanCount || 0) }
+        }
+
+        PanelSeparator { width: parent.width; foreground: root.foreground }
+
+        PanelSectionHeader {
+          text: "DISPLAY"
+          foreground: root.foreground
+          fontFamily: root.fontFamily
+        }
+
+        Toggle {
+          width: parent.width
+          label: "Show temperature in the bar"
+          description: "Show the live CPU temperature beside the fan icon."
+          foreground: root.foreground
+          accent: Color.accent
+          fontFamily: root.fontFamily
+          checked: root.showTemperature
+          onClicked: root.persistSettings({ showTemperature: !root.showTemperature })
+        }
+
+        RowLayout {
+          width: parent.width
+          spacing: Style.space(8)
+
+          ModeButton {
+            Layout.fillWidth: true
+            title: "Celsius"
+            subtitle: "°C"
+            selected: root.temperatureUnit === "Celsius"
+            onClicked: root.persistSettings({ temperatureUnit: "Celsius" })
+          }
+          ModeButton {
+            Layout.fillWidth: true
+            title: "Fahrenheit"
+            subtitle: "°F"
+            selected: root.temperatureUnit === "Fahrenheit"
+            onClicked: root.persistSettings({ temperatureUnit: "Fahrenheit" })
+          }
         }
 
         PanelSeparator { width: parent.width; foreground: root.foreground }

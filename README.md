@@ -11,8 +11,9 @@ It displays CPU temperature and fan RPM and offers three modes:
 - **Maximum** holds every detected Apple SMC fan at its reported maximum RPM.
 
 The bar can optionally show the live CPU package temperature beside the fan
-icon, like the battery percentage indicator. This is enabled by default and can
-be changed in the plugin settings.
+icon, like the battery percentage indicator. It is hidden by default and can be
+switched on from the plugin panel, where Celsius or Fahrenheit can also be
+selected. The fan icon turns red only while Maximum mode is active.
 
 Maximum mode is deliberately not enabled across reboot. The installed `mbpfan`
 service remains enabled and resumes automatic thermal control on the next boot.
